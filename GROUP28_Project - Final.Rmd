@@ -1,0 +1,524 @@
+---
+title: "Project  Facebook Metrics"
+author: "Sonali Sahu Patel
+date: "2023-11-22"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,comment = '', fig.align = 'center'  , out.width="65%"
+)
+knitr::include_graphics
+
+library(xlsx)
+library(ggplot2)
+library(stats)
+library(dplyr)
+library(MLmetrics)
+library(MASS)
+```
+
+## Introduction
+
+  
+The project is focused on analyzing social media's role in influencing customers by measuring the impact of status updates and advertisement on Facebook for a some cosmetic brand. The data used is from the UCI Machine Learning Repository. The response variable in the linear regression will be "Page Total Likes". We are making the assumption that the total number of page likes is a good representation of brand reputation and social media engagement with consumers.  
+
+```{r}
+FB_dataset1 <- read.csv("C:/Users/vinay/Sonali/Fall 2023 Courses/ITMD 514/HWGROUP28/Dataset Projects/facebook/dataset_Facebook.csv", header = TRUE, sep=";")
+head(FB_dataset1)
+```
+
+
+##  Dataset Cleaning 
+```{r}
+#Renaming the dataset for ease of use
+
+FB_dataset2 <- data.frame(FB_dataset1)
+names(FB_dataset2)[1] <- "Page.Total.Likes"
+names(FB_dataset2)[2] <- "Type"
+names(FB_dataset2)[3] <- "Category"
+names(FB_dataset2)[4] <- "Post.Month"
+names(FB_dataset2)[5] <- "Post.Weekday"
+names(FB_dataset2)[6] <- "Post.Hour"
+names(FB_dataset2)[7] <- "Paid"
+names(FB_dataset2)[8] <- "Total.Reach"
+names(FB_dataset2)[9] <- "Total.Impressions"
+names(FB_dataset2)[10] <- "Engaged.Users"
+names(FB_dataset2)[11] <- "Consumers"
+names(FB_dataset2)[12] <- "Consumptions"
+names(FB_dataset2)[13] <- "Impressions.for.Users.with.Likes"
+names(FB_dataset2)[14] <- "Reach.by.Users.with.Likes"
+names(FB_dataset2)[15] <- "Users.with.Likes.and.Engagement"
+names(FB_dataset2)[16] <- "Comment"
+names(FB_dataset2)[17] <- "Like"
+names(FB_dataset2)[18] <- "Share"
+names(FB_dataset2)[19] <- "Total.Interactions"
+
+# Check for missing values
+missing_values_present <- any(is.na(FB_dataset2))
+
+print (missing_values_present)
+
+# Find which column has missing values
+colSums(is.na(FB_dataset2))
+
+
+# Find row indices with missing values
+rows_with_missing <- which(apply(is.na(FB_dataset2), 1, any))
+
+# Print the number of rows having missing values
+print("Row numbers with missing values:")
+print(rows_with_missing)
+
+```
+Note-
+*Replacing missing values with 0 so that we can reduce the bias and sample size is maintained.
+*It would potentially increase the efficiency and also helps us to utilize the complete dataset.
+```{r}
+
+missing_values <- is.na(FB_dataset2)
+
+# Eliminating N/A values with 0 
+FB_dataset2 [missing_values] <- 0
+
+
+```
+
+## Data Review
+
+
+```{r}
+
+# Count the number of observations (rows) 
+num_rows1 <- nrow(FB_dataset2)
+
+print(paste("Number of rows in Dataset: ", num_rows1))
+
+
+# Number of variables recorded
+num_var <- ncol(FB_dataset2)
+
+print(paste("Number of columns in Dataset: ", num_var))
+
+# Types of random variables
+str(FB_dataset2)
+
+```
+- Here we observe that there are 500 rows and 19 variables.
+- Variable 1 is response variable and variables from 2-7 are giving the information about the post. 
+- Variables from 8-19 ("Total.Reach","Total.Impressions","Engaged.Users", etc.) are recorded after posting. 
+- They can give useful information about post reach, and we will be looking at them in EDA.
+
+
+```{r}
+#summary of the dataset
+summary(FB_dataset2)
+
+```
+
+## Histogram of Page_Total_Likes
+
+```{r}
+
+#Histogram for Page_Total_Likes
+ggplot(FB_dataset2, aes(x = Page.Total.Likes)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  labs(title = "Histogram of Page.total.likes",
+       x = "Page.Total.Likes",
+       y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+ #standardizing Page_Total_Likes
+
+Page.Total.Likes_z <- scale(FB_dataset2$Page.Total.Likes)
+
+
+# Create a histogram for 'Page.total.likes' with facets for each month
+
+ggplot(FB_dataset2, aes(x = Page.Total.Likes_z)) +
+  geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+  facet_wrap(~Post.Month, scales = "free_x") +
+  labs(title = "Histogram of Page.total.likes by Post.Month",
+       x = "Page.total.likes",
+       y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+* Here we observe that number of likes increases linearly as per first histogram.
+* We observe in second histogram that number of likes distributed monthly. 
+* We observe that few months follow normal distribution. Which means posted contents more like concentrated at around middle of the month. 
+
+
+```{r}
+# Histogram of Post.Hour 
+ggplot(data = FB_dataset2, aes(x = Post.Hour)) +
+  geom_histogram(fill = "steelblue", binwidth = 1, color = "black") + 
+  labs(title = "Frequency of Posts by Hour", x = "Post Hour", y = "Frequency") +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23) 
+
+
+```
+
+
+* Here we observe that around post went live mostly at around 02:30 AM of the day. 
+* we can conclude that second spike at around 10:00 am. 
+
+
+## Boxplot of Post total reach by Type
+
+```{r}
+ggplot(FB_dataset2, aes(x = Type, y = Total.Reach, fill = Type)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Lifetime Post Total Reach by Type",
+       x = "Type of Post",
+       y = "Lifetime Post Total Reach") +
+  theme_minimal()
+
+
+```
+
+
+
+* Here we observe how different types of post will impact the reach of the post. The reach can be defined as unique number of users the post have     reached.
+* We can see here the video post has highest median.The interquartile range is widest for video post and all the post type is left skewed.
+* We observe when the post is of photo type then it's reach to user has lot of outliers.
+
+
+## Overlay histogram 
+
+```{r}
+
+Total.Reach.scale = scale(FB_dataset2$Total.Reach)
+ggplot(FB_dataset2, aes(x=Total.Reach.scale, fill=as.factor(Paid))) +
+  geom_histogram(position="identity", alpha=0.5, bins=30) +
+  labs(title="Overlay Histogram of Lifetime Post Total Reach for Paid vs Non-paid Posts")
+
+```
+
+* I have assumed here 0 in non-paid and 1 being the paid post.
+* Here we observe that non-paid post have more reach when compared with the     paid post. 
+* However, we need to analyze more to make a decision.
+
+
+```{r}
+# Overlay Histogram 'Total.Interactions' vs 'Paid' 
+
+ggplot(FB_dataset2, aes(x = Total.Interactions, fill = as.factor(Paid))) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) +
+  labs(title = "Histogram of Total Interactions for Paid vs Non-paid Posts",
+       x = "Total Interactions") +
+  scale_fill_manual(values = c("blue", "red"), name = "Paid")
+
+```
+- Here we observe that total interactions is influenced more for non-paid then paid however, we need further investigation.
+
+## BarPLot based on the interactions vs category
+
+```{r}
+ggplot(FB_dataset2, aes(x=Category, y=Total.Interactions, fill=as.factor(Category))) +
+  geom_bar(stat="identity") +
+  labs(title="Bar Graph of Total Interaction Based on Category") +
+  xlab("Category") +
+  ylab("Total Interaction")
+```
+
+* Here we have observed that the interactions (like, share & comment) with     category 3 post is highest and category 1 post is lowest. 
+
+## Scatter Plot  Total.Interactions vs Total.Reach
+```{r}
+
+
+# Create a boxplot to visualize outliers
+boxplot(FB_dataset2$Total.Reach, FB_dataset2$Total.Interactions, main="Boxplot of Reach and Interaction")
+
+# Identify and store outliers
+outliers_reach <- boxplot.stats(FB_dataset2$Total.Reach)$out
+outliers_interaction <- boxplot.stats(FB_dataset2$Total.Interactions)$out
+
+# Remove outliers from the dataset
+FB_dataset_no_outliers <- FB_dataset2[!(FB_dataset2$Total.Reach %in% outliers_reach), ]
+FB_dataset_no_outliers <- FB_dataset_no_outliers[!(FB_dataset_no_outliers$Total.Interactions %in% outliers_interaction), ]
+
+# Now FB_dataset_no_outliers contains the dataset with outliers removed
+
+ggplot(FB_dataset_no_outliers, aes(x = Total.Interactions , y =  Total.Reach)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Total Interaction vs Lifetime Post Total Reach") +
+  xlab("Total Interaction") +
+  ylab("Lifetime Post Total Reach")
+
+
+```
+
+
+## Hypothesis Testing
+
+**Parameter:**
+
+$\sigma^2_{NON} =$ variances of the interaction for non-paid post
+
+$\sigma^2_{PAID} =$ variances of the interaction for paid post
+
+* Here we will try to test variance for Total.Interactions of Paid and non-Paid post will be same.
+* Assuming 'Total.Interaction' is the variable we want to test
+  and 'Paid' is the grouping variable (1 for paid, 0 for non-paid)
+* Assuming  dataset follows normal Distribution
+
+\begin{align*} 
+H_0: \sigma^2_{NON} =  \sigma^2_{PAID}  \\
+
+H_1: \sigma^2_{NON}  \ne  \sigma^2_{PAID}  
+\end{align*}
+
+```{r}
+
+
+# Perform F-test for equality of variances
+var_test_result <- var.test(Total.Interactions ~ Paid, data = FB_dataset2)
+
+# Print the results
+print(var_test_result)
+
+```
+* Here we observe that the p-value is very small. So we infer that we reject the null hypothesis.
+* Therefore, you have evidence to suggest that the variances of 'Total.Interactions' are not equal between paid and non-paid posts. 
+* The 95% confidence interval for the ratio of variances does not include 1, further supporting the conclusion that the variances are significantly different.
+
+
+## T-Test
+
+* Based on the result of F test, we conduct a hypothesis testing for the mean of `Total.Interactions` between `Paid`.
+
+
+\begin{align*}
+H_0: \mu_{NON} = \mu_{PAID}, \\
+H_1:  \mu_{NON} \ne \mu_{PAID}
+\end{align*}
+```{r}
+t.test(Total.Interactions~Paid, data = FB_dataset2,var.equal = FALSE)
+```
+* Here the p-value is greater than alpha (0.05), so we fail to reject the null hypothesis. 
+* So there is not enough evidence to conclude that there is a significant difference in means between the two groups.
+
+
+### Building linear Regression
+
+```{r}
+
+# Ignoring Few qualitative variables like type, category.
+#  Also excluded variables comment, like , share as it is already considered in Total interactions.
+
+FB_dataset <- FB_dataset2[, -c(2, 3,16,17,18 )]
+
+
+#Dividing the dataset into two parts for training and testing
+i <- sample(2, nrow(FB_dataset), replace=TRUE, prob=c(0.8, 0.2))
+table(i)
+FBTraining <- FB_dataset[i==1,]
+FBTest <- FB_dataset[i==2,]
+
+
+
+#  Simple Linear Regression for Page.Total.Likes on variable Post.Month
+lm1 <- lm(Page.Total.Likes ~ Post.Month, data = FBTraining)
+
+# Print the summary of the linear regression model
+summary(lm1)
+```
+Notes:
+-These statistics describe the distribution of the residuals (the differences between the observed and predicted values).
+-Intercept: The estimated intercept when 'Post.Month' is 0.
+Post.Month: The estimated change in 'Page.Total.Likes' for a one-unit change in 'Post.Month.'
+The model has very low p-value < 0.001).
+The Multiple R-squared value suggests that the model explains 88 percent of the variance in 'Page.Total.Likes.'
+The Adjusted R-squared considers the number of predictors and is close to the Multiple R-squared.
+The F-statistic is highly significant (p-value < 2e-16), indicating that the overall model is a good fit.
+
+
+### Ploting the response and the predictor by Using the abline() function to display the least squares regression line.
+
+```{r}
+
+plot(FBTraining$Post.Month,FBTraining$Page.Total.Likes)
+abline(lm1,col="red")
+
+```
+* Here the red line is predicted value and is not very far away from the actual observations.
+
+```{r}
+
+par(mfrow=c(2,2))
+plot(lm1)
+```
+
+* Here we observe that the residuals vs fitted plot shows that the relationship is non-linear.So we can consider that just taking the months are predictor is not the right approach.
+
+```{r}
+pairs(FBTraining,lower.panel = NULL)
+
+# Finding the correlated matrix
+cor_matrix <- cor(subset(FBTraining))
+# Round the correlation matrix to 2 decimal places
+rounded_cor_matrix <- round(cor_matrix, 2)
+
+# Display the formatted matrix using print()
+print(rounded_cor_matrix)
+```
+
+
+
+
+### Multiple linear Regression
+
+```{r}
+
+# Performing Multiple linear for the FBTraining dataset
+lm2 <- lm(Page.Total.Likes~., data=FBTraining)
+summary(lm2)
+
+```
+
+* Here we observe that there is strong relationship between the predictors variables like 'Post.Month' and 'Users.with.Likes.and.Engagement' on response 'Page.Total.Likes'
+* The F-statistic is highly significant (p-value < 2.2e-16), indicating that the overall model is a good fit.
+* As the Multiple R-squared value is 89 % which explains that the variability in response can be explained by the predictors included in the model.
+
+
+
+## Evaluating Model Accuracy
+
+```{r}
+
+
+# Predicting the Page.total.Likes
+
+Page.Total.Likes_Predict = predict(lm2, FBTest)
+FBTest$Page.Total.Likes_Predict = Page.Total.Likes_Predict
+View(FBTest)
+
+# Mean Absolute error
+MAE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+
+# Mean squared error
+MSE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+
+
+
+# Mean Absolute Percentage Error
+error = MAPE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+error
+
+#Accuracy
+
+Accuracy= 1-error
+Accuracy
+
+```
+
+* Here notice that the model has accuracy of about `r Accuracy` 
+
+
+### Backward Selection
+```{r}
+
+# Create a null model 
+intercept_only <- lm(Page.Total.Likes ~ 1, data = FBTraining)
+# Create a full model
+all <- lm(Page.Total.Likes~., data = FBTraining)
+# performing Backward stepwise regression
+backward <- stepAIC (all, direction='backward',trace = 0)
+
+```
+
+```{r}
+backward$anova
+summary(backward)
+
+```
+
+
+
+```{r}
+# Predicting the Page.total.Likes
+
+Page.Total.Likes_Predict <- predict(backward, FBTest)
+FBTest$Page.Total.Likes_Predict <- Page.Total.Likes_Predict
+
+# Mean Absolute error
+MAE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+
+# Mean squared error
+MSE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+
+
+
+# Mean Absolute Percentage Error
+error = MAPE(FBTest$Page.Total.Likes_Predict, FBTest$Page.Total.Likes)
+error
+
+#Accuracy
+
+Accuracy= 1-error
+Accuracy
+
+
+```
+
+### Backward Selection with qualitative variable
+
+```{r}
+FB_dataset3 <- FB_dataset2[, -c(16,17,18 )]
+
+
+#Dividing the dataset into two parts for training and testing
+i <- sample(2, nrow(FB_dataset3), replace=TRUE, prob=c(0.8, 0.2))
+FBTraining3 <- FB_dataset3[i==1,]
+FBTest3 <- FB_dataset3[i==2,]
+
+
+# Create a null model
+intercept_only <- lm(Page.Total.Likes ~ 1, data = FBTraining3)
+# Create a full model
+all <- lm(Page.Total.Likes~., data = FBTraining3)
+# performing Backward stepwise regression
+backward2 <- stepAIC (all, direction='backward',trace = 0)
+backward2$anova
+summary(backward2) 
+
+# Predicting the Page.total.Likes
+
+Page.Total.Likes_Predict = predict(backward2, FBTest3)
+FBTest3$Page.Total.Likes_Predict = Page.Total.Likes_Predict
+
+# Mean Absolute error
+MAE(FBTest3$Page.Total.Likes_Predict, FBTest3$Page.Total.Likes)
+
+# Mean squared error
+MSE(FBTest3$Page.Total.Likes_Predict, FBTest3$Page.Total.Likes)
+
+
+
+# Mean Absolute Percentage Error
+error = MAPE(FBTest3$Page.Total.Likes_Predict, FBTest3$Page.Total.Likes)
+error
+
+#Accuracy
+
+Accuracy= 1-error
+Accuracy
+
+```
+
+
+-So, here we can conclude depending upon the accuracy we can say model backward is a good fit.
+
+
+
+
+## Thank You
